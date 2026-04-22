@@ -65,8 +65,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
         if (validFiles.length === 0) return;
 
-        // Upload
-        setIsUploading(true);
+setIsUploading(true);
         try {
             const response = await apiService.uploadImages(validFiles);
             if (response.success) {

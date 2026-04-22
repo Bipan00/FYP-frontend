@@ -1,238 +1,346 @@
-/**
- * Admin Dashboard Page
- * 
- * Purpose: Allow admins to view all listings and approve/reject them.
- * 
- * Features:
- * - Table view of all listings
- * - Status badges (Pending, Approved, Rejected)
- * - Actions to Approve or Reject listings
- */
-
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import DashboardTable, { TableColumn } from '../components/DashboardTable';
 import apiService from '../services/api';
-import { Home as HomeIcon, CheckCircle, XCircle, Clock, Loader2, AlertCircle, Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface Listing {
     _id: string;
     title: string;
+    location: string;
     price: number;
     type: string;
-    location: string;
-    isApproved: boolean | undefined; // undefined/null = pending
-    ownerId: {
-        name: string;
-        email: string;
-    };
-    createdAt: string;
+    isApproved: boolean;
+    ownerId?: { name: string; email: string };
 }
 
 const AdminDashboard: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'listings' | 'kyc'>('listings');
     const [listings, setListings] = useState<Listing[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+    const [updating, setUpdating] = useState<string | null>(null);
+
+    const [kycUsers, setKycUsers] = useState<any[]>([]);
+    const [loadingKyc, setLoadingKyc] = useState(false);
+    const [updatingKyc, setUpdatingKyc] = useState<string | null>(null);
+    const [pendingKycCount, setPendingKycCount] = useState<number>(0);
 
     useEffect(() => {
-        fetchListings();
-    }, []);
+        if (activeTab === 'listings' && listings.length === 0) fetchListings();
+        if (activeTab === 'kyc') {
+            if (kycUsers.length === 0) fetchKycUsers();
+            fetchPendingKycCount();
+        }
+    }, [activeTab]);
 
     const fetchListings = async () => {
         try {
             const response = await apiService.getAdminListings();
-            if (response.success) {
-                setListings(response.data);
-            }
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch listings');
+            setListings(response.data || []);
+        } catch (err) {
+            setError('Failed to load listings.');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    const handleStatusUpdate = async (id: string, isApproved: boolean) => {
-        setActionLoading(id);
+    const handleStatusUpdate = async (id: string, approve: boolean) => {
+        setUpdating(id);
         try {
-            const response = await apiService.updateListingStatus(id, isApproved);
-            if (response.success) {
-                setListings(prev => prev.map(listing =>
-                    listing._id === id ? { ...listing, isApproved } : listing
-                ));
-            }
-        } catch (err: any) {
-            setError(err.message || 'Failed to update status');
+            await apiService.updateListingStatus(id, approve);
+            
+            setListings((prev) =>
+                prev.map((l) => (l._id === id ? { ...l, isApproved: approve } : l))
+            );
+        } catch (err) {
+            alert('Failed to update status.');
         } finally {
-            setActionLoading(null);
+            setUpdating(null);
         }
     };
 
-    const filteredListings = listings.filter(listing => {
-        if (filter === 'all') return true;
-        if (filter === 'pending') return listing.isApproved === undefined;
-        if (filter === 'approved') return listing.isApproved === true;
-        if (filter === 'rejected') return listing.isApproved === false;
-        return true;
-    });
+    const fetchKycUsers = async () => {
+        setLoadingKyc(true);
+        try {
+            const response = await apiService.getKycUsers();
+            setKycUsers(response.data || []);
+        } catch (err) {
+            setError('Failed to load KYC users.');
+        } finally {
+            setLoadingKyc(false);
+        }
+    };
 
-    const getStatusBadge = (isApproved: boolean | undefined) => {
-        if (isApproved === true) {
-            return (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <CheckCircle className="h-3 w-3" />
-                    Approved
-                </span>
-            );
-        } else if (isApproved === false) {
-            return (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <XCircle className="h-3 w-3" />
-                    Rejected
-                </span>
-            );
+    const fetchPendingKycCount = async () => {
+        try {
+            const response = await apiService.getPendingKycCount();
+            setPendingKycCount(response.count || 0);
+        } catch (err) {
+            
+        }
+    };
+
+    const handleKycStatusUpdate = async (id: string, approve: boolean) => {
+        if (!approve) {
+            const reason = window.prompt('Enter reason for rejection (optional):');
+            if (reason === null) return; 
+
+            setUpdatingKyc(id);
+            try {
+                await apiService.rejectKyc(id, reason);
+                setKycUsers((prev) =>
+                    prev.map((u) => (u._id === id ? { ...u, kycStatus: 'rejected', kycRejectionReason: reason } : u))
+                );
+                
+                setPendingKycCount(prev => Math.max(0, prev - 1));
+            } catch (err) {
+                alert('Failed to update KYC status.');
+            } finally {
+                setUpdatingKyc(null);
+            }
         } else {
-            return (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <Clock className="h-3 w-3" />
-                    Pending
-                </span>
-            );
+            setUpdatingKyc(id);
+            try {
+                await apiService.approveKyc(id);
+                setKycUsers((prev) =>
+                    prev.map((u) => (u._id === id ? { ...u, kycStatus: 'verified' } : u))
+                );
+                
+                setPendingKycCount(prev => Math.max(0, prev - 1));
+            } catch (err) {
+                alert('Failed to update KYC status.');
+            } finally {
+                setUpdatingKyc(null);
+            }
         }
     };
 
-    return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Navbar */}
-            <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <Link to="/" className="flex items-center gap-2">
-                            <HomeIcon className="h-6 w-6 text-primary" />
-                            <span className="font-bold text-xl text-primary">GharSathi Admin</span>
-                        </Link>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-500">Administrator View</span>
-                        </div>
-                    </div>
-                </div>
-            </nav>
+const total = listings.length;
+    const approved = listings.filter((l) => l.isApproved).length;
+    const pending = listings.filter((l) => !l.isApproved).length;
 
-            {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex items-center justify-between mb-8">
+    const columns: TableColumn[] = [
+        {
+            header: 'Title',
+            key: 'title',
+            render: (val) => (
+                <span className="font-medium text-gray-800 text-sm">{val}</span>
+            ),
+        },
+        {
+            header: 'Owner',
+            key: 'ownerId',
+            render: (val) =>
+                val ? (
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Listing Verification</h1>
-                        <p className="mt-1 text-sm text-gray-600">Review and approve property listings</p>
+                        <p className="text-sm text-gray-700">{val.name}</p>
+                        <p className="text-xs text-gray-400">{val.email}</p>
                     </div>
-                    <div className="flex gap-2">
-                        {/* Filter Tabs */}
-                        <div className="bg-white rounded-lg p-1 border border-gray-200 flex">
-                            {(['pending', 'approved', 'rejected', 'all'] as const).map((f) => (
-                                <button
-                                    key={f}
-                                    onClick={() => setFilter(f)}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === f
-                                            ? 'bg-primary text-white shadow-sm'
-                                            : 'text-gray-600 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                        <AlertCircle className="h-5 w-5 text-red-600" />
-                        <p className="text-sm text-red-800">{error}</p>
-                    </div>
-                )}
-
-                {/* Listings Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    {isLoading ? (
-                        <div className="p-12 text-center">
-                            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
-                            <p className="mt-4 text-gray-500">Loading listings...</p>
-                        </div>
-                    ) : filteredListings.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <Search className="h-12 w-12 text-gray-300 mx-auto" />
-                            <h3 className="mt-4 text-lg font-medium text-gray-900">No listings found</h3>
-                            <p className="mt-2 text-gray-500">
-                                {filter === 'all'
-                                    ? 'There are no listings in the system.'
-                                    : `No ${filter} listings found.`}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredListings.map((listing) => (
-                                        <tr key={listing._id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{listing.title}</div>
-                                                <div className="text-xs text-gray-500">{listing.location}</div>
-                                                <div className="text-xs text-gray-400 mt-1">ID: {listing._id}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">{listing.ownerId?.name || 'Unknown'}</div>
-                                                <div className="text-xs text-gray-500">{listing.ownerId?.email}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">Rs. {listing.price.toLocaleString()}</div>
-                                                <div className="text-xs text-gray-500">{listing.type}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {getStatusBadge(listing.isApproved)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {actionLoading === listing._id ? (
-                                                        <Loader2 className="h-5 w-5 text-gray-400 animate-spin" />
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleStatusUpdate(listing._id, true)}
-                                                                disabled={listing.isApproved === true}
-                                                                className={`p-1 rounded hover:bg-green-50 ${listing.isApproved === true ? 'text-gray-300 cursor-not-allowed' : 'text-green-600 hover:text-green-900'}`}
-                                                                title="Approve"
-                                                            >
-                                                                <CheckCircle className="h-5 w-5" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleStatusUpdate(listing._id, false)}
-                                                                disabled={listing.isApproved === false}
-                                                                className={`p-1 rounded hover:bg-red-50 ${listing.isApproved === false ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:text-red-900'}`}
-                                                                title="Reject"
-                                                            >
-                                                                <XCircle className="h-5 w-5" />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                ) : (
+                    <span className="text-gray-400"></span>
+                ),
+        },
+        {
+            header: 'Price',
+            key: 'price',
+            render: (val) => `Rs. ${val.toLocaleString()}`,
+        },
+        { header: 'Type', key: 'type' },
+        {
+            header: 'Status',
+            key: 'isApproved',
+            render: (val) =>
+                val ? (
+                    <span className="badge-approved">Approved</span>
+                ) : (
+                    <span className="badge-pending">Pending</span>
+                ),
+        },
+        {
+            header: 'Actions',
+            key: '_id',
+            render: (_, row) => (
+                <div className="flex items-center gap-2">
+                    {!row.isApproved && (
+                        <button
+                            onClick={() => handleStatusUpdate(row._id, true)}
+                            disabled={updating === row._id}
+                            className="text-xs px-3 py-1 rounded border border-green-400 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                        >
+                            {updating === row._id ? '...' : 'Approve'}
+                        </button>
+                    )}
+                    {row.isApproved && (
+                        <button
+                            onClick={() => handleStatusUpdate(row._id, false)}
+                            disabled={updating === row._id}
+                            className="text-xs px-3 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                            {updating === row._id ? '...' : 'Reject'}
+                        </button>
                     )}
                 </div>
+            ),
+        },
+    ];
+
+    const kycColumns: TableColumn[] = [
+        {
+            header: 'User',
+            key: 'name',
+            render: (val, row) => (
+                <div>
+                    <span className="font-medium text-gray-800 text-sm">{val}</span>
+                    <p className="text-xs text-gray-500">{row.email}</p>
+                </div>
+            )
+        },
+        { header: 'Role', key: 'role' },
+        {
+            header: 'Submitted',
+            key: 'kycSubmittedAt',
+            render: (val) => val ? new Date(val).toLocaleDateString() : <span className="text-gray-400 text-xs"></span>
+        },
+        {
+            header: 'Document',
+            key: 'kycDocument',
+            render: (val) => val ? (
+                <a href={val} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">
+                    View Document
+                </a>
+            ) : <span className="text-gray-400 text-xs">No Upload</span>
+        },
+        {
+            header: 'Status',
+            key: 'kycStatus',
+            render: (val) => {
+                if (val === 'verified') return <span className="badge-approved">Verified</span>;
+                if (val === 'rejected') return <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Rejected</span>;
+                if (val === 'pending') return <span className="badge-pending">Pending</span>;
+                return <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">Not Submitted</span>;
+            }
+        },
+        {
+            header: 'Actions',
+            key: '_id',
+            render: (_, row) => (
+                <div className="flex items-center gap-2">
+                    {row.kycStatus === 'pending' && (
+                        <>
+                            <button
+                                onClick={() => handleKycStatusUpdate(row._id, true)}
+                                disabled={updatingKyc === row._id}
+                                className="text-xs px-3 py-1 rounded border border-green-400 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                            >
+                                {updatingKyc === row._id ? '...' : 'Approve'}
+                            </button>
+                            <button
+                                onClick={() => handleKycStatusUpdate(row._id, false)}
+                                disabled={updatingKyc === row._id}
+                                className="text-xs px-3 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                                {updatingKyc === row._id ? '...' : 'Reject'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            )
+        }
+    ];
+
+    return (
+        <div className="min-h-screen bg-white flex flex-col">
+            <Navbar />
+
+            <div className="page-container">
+                <div className="mt-2">
+                    <h1 className="text-xl font-semibold text-gray-900">Admin Dashboard</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                        Manage property listings and user verifications
+                    </p>
+                </div>
+                <div className="flex border-b border-gray-200 mb-6 mt-6">
+                    <button
+                        className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'listings'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                        onClick={() => setActiveTab('listings')}
+                    >
+                        Property Listings
+                    </button>
+                    <button
+                        className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                            activeTab === 'kyc'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                        onClick={() => setActiveTab('kyc')}
+                    >
+                        KYC Verification
+                        {pendingKycCount > 0 && (
+                            <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {pendingKycCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+                {activeTab === 'listings' && (
+                    <>
+                <div className="flex gap-4 mb-5">
+                    <div className="border border-gray-200 rounded-md px-4 py-2 text-center">
+                        <p className="text-lg font-bold text-gray-900">{total}</p>
+                        <p className="text-xs text-gray-500">Total</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-md px-4 py-2 text-center">
+                        <p className="text-lg font-bold text-green-700">{approved}</p>
+                        <p className="text-xs text-gray-500">Approved</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-md px-4 py-2 text-center">
+                        <p className="text-lg font-bold text-yellow-600">{pending}</p>
+                        <p className="text-xs text-gray-500">Pending</p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                ) : error && activeTab === 'listings' ? (
+                    <div className="border border-red-200 rounded-md p-4 text-sm text-red-600">
+                        {error}
+                    </div>
+                ) : (
+                    <DashboardTable
+                        columns={columns}
+                        rows={listings}
+                        emptyMessage="No listings have been submitted yet."
+                    />
+                )}
+                    </>
+                )}
+
+                {activeTab === 'kyc' && (
+                    <>
+                        {loadingKyc ? (
+                            <div className="flex justify-center py-12">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            </div>
+                        ) : error && activeTab === 'kyc' ? (
+                            <div className="border border-red-200 rounded-md p-4 text-sm text-red-600">
+                                {error}
+                            </div>
+                        ) : (
+                            <DashboardTable
+                                columns={kycColumns}
+                                rows={kycUsers}
+                                emptyMessage="No users found for KYC verification."
+                            />
+                        )}
+                    </>
+                )}
             </div>
         </div>
     );

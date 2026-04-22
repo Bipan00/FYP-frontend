@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -6,10 +5,8 @@ import L from 'leaflet';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
-// Fix for default marker icon in Leaflet with React
-// @ts-ignore
 import icon from 'leaflet/dist/images/marker-icon.png';
-// @ts-ignore
+
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 let DefaultIcon = L.icon({
@@ -39,7 +36,6 @@ interface MapComponentProps {
     zoom?: number;
 }
 
-// Component to update map center when listings change
 const MapUpdater: React.FC<{ listings: Listing[] }> = ({ listings }) => {
     const map = useMap();
 
@@ -59,10 +55,10 @@ const MapUpdater: React.FC<{ listings: Listing[] }> = ({ listings }) => {
 const MapComponent: React.FC<MapComponentProps> = ({
     listings,
     className = "h-[calc(100vh-200px)] w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm z-0 relative",
-    center = [27.7172, 85.3240], // Default Kathmandu
+    center = [27.7172, 85.3240], 
     zoom = 13
 }) => {
-    // Filter listings with valid coordinates
+    
     const validListings = listings.filter(
         listing => listing.latitude && listing.longitude
     );

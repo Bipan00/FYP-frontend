@@ -15,21 +15,19 @@ interface ListingProps {
 }
 
 const ListingCard: React.FC<ListingProps> = ({ listing }) => {
-    // Format price to NPR currency
+    
     const formattedPrice = new Intl.NumberFormat('en-NP', {
         style: 'currency',
         currency: 'NPR',
         maximumFractionDigits: 0,
     }).format(listing.price);
 
-    // Use placeholder if no images
-    const coverImage = listing.images && listing.images.length > 0
+const coverImage = listing.images && listing.images.length > 0
         ? listing.images[0]
-        : 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'; // Fallback image
+        : 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'; 
 
     return (
         <div className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300 flex flex-col h-full">
-            {/* Image Container */}
             <div className="relative aspect-[4/3] overflow-hidden">
                 <img
                     src={coverImage}
@@ -47,8 +45,6 @@ const ListingCard: React.FC<ListingProps> = ({ listing }) => {
                     </span>
                 </div>
             </div>
-
-            {/* Content */}
             <div className="p-5 flex flex-col flex-1">
                 <div className="flex justify-between items-start gap-2 mb-2">
                     <h3 className="font-bold text-gray-900 line-clamp-1 flex-1 group-hover:text-primary transition-colors">
@@ -64,8 +60,6 @@ const ListingCard: React.FC<ListingProps> = ({ listing }) => {
                     <MapPin className="h-4 w-4" />
                     <span className="line-clamp-1">{listing.location}</span>
                 </div>
-
-                {/* Features (Mock data for now as schema might not have all these yet) */}
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-4 py-3 border-y border-gray-100">
                     <div className="flex items-center gap-1">
                         <BedDouble className="h-4 w-4" />

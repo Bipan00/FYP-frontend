@@ -3,13 +3,13 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import apiService from '../services/api';
 import { Home as HomeIcon, Loader2, AlertCircle } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
+import MapPicker from '../components/MapPicker';
 
 const EditListing: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    // Form state
-    const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
         title: '',
         description: '',
         price: '',
@@ -20,8 +20,7 @@ const EditListing: React.FC = () => {
         images: [] as string[]
     });
 
-    // UI state
-    const [error, setError] = useState('');
+const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -70,6 +69,14 @@ const EditListing: React.FC = () => {
         setFormData({ ...formData, images: urls });
     };
 
+    const handleLocationChange = (lat: number, lng: number) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat.toString(),
+            longitude: lng.toString()
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -78,20 +85,34 @@ const EditListing: React.FC = () => {
 
         // Validation
         if (!formData.title || !formData.description || !formData.price || !formData.location) {
-            setError('Please fill in all required fields');
+            setError('Please fill in all required fields (Title, Description, Price, and Address)');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (formData.description.length < 20 || formData.description.length > 2000) {
+            setError('Description must be between 20 and 2000 characters');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (formData.images.length === 0) {
+            setError('Please upload at least one property image');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
         const price = parseFloat(formData.price);
         if (isNaN(price) || price <= 0) {
             setError('Price must be a positive number');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
         setIsSaving(true);
 
         try {
-            // Prepare data
+            
             const listingData: any = {
                 title: formData.title,
                 description: formData.description,
@@ -101,14 +122,18 @@ const EditListing: React.FC = () => {
                 images: formData.images
             };
 
-            // Add optional fields
-            if (formData.latitude) listingData.latitude = parseFloat(formData.latitude);
-            if (formData.longitude) listingData.longitude = parseFloat(formData.longitude);
+if (formData.latitude && !isNaN(parseFloat(formData.latitude))) {
+                listingData.latitude = parseFloat(formData.latitude);
+            }
+            if (formData.longitude && !isNaN(parseFloat(formData.longitude))) {
+                listingData.longitude = parseFloat(formData.longitude);
+            }
 
             await apiService.updateListing(id, listingData);
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.message || 'Failed to update listing');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setIsSaving(false);
         }
@@ -124,7 +149,6 @@ const EditListing: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Navbar */}
             <nav className="bg-white border-b border-gray-200 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
@@ -135,21 +159,15 @@ const EditListing: React.FC = () => {
                     </div>
                 </div>
             </nav>
-
-            {/* Main Content */}
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                {/* Header */}
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold text-gray-900">Edit Listing</h1>
                     <p className="mt-2 text-gray-600">
                         Update your property details
                     </p>
                 </div>
-
-                {/* Form Card */}
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                     <div className="p-8">
-                        {/* Error Message */}
                         {error && (
                             <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
                                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -158,11 +176,8 @@ const EditListing: React.FC = () => {
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-8">
-                            {/* Basic Info Section */}
                             <div className="space-y-6">
                                 <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
-
-                                {/* Title */}
                                 <div>
                                     <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
                                         Listing Title <span className="text-red-500">*</span>
@@ -179,8 +194,6 @@ const EditListing: React.FC = () => {
                                     />
                                     <p className="mt-1.5 text-xs text-gray-500">Catchy title, 5-100 characters</p>
                                 </div>
-
-                                {/* Description */}
                                 <div>
                                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                                         Description <span className="text-red-500">*</span>
@@ -198,13 +211,10 @@ const EditListing: React.FC = () => {
                                     <p className="mt-1.5 text-xs text-gray-500">Detailed description, 20-2000 characters</p>
                                 </div>
                             </div>
-
-                            {/* Details Section */}
                             <div className="space-y-6">
                                 <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Property Details</h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* Price */}
                                     <div>
                                         <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
                                             Monthly Rent (NPR) <span className="text-red-500">*</span>
@@ -226,8 +236,6 @@ const EditListing: React.FC = () => {
                                             />
                                         </div>
                                     </div>
-
-                                    {/* Property Type */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-3">
                                             Property Type <span className="text-red-500">*</span>
@@ -301,12 +309,8 @@ const EditListing: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Location Section */}
                             <div className="space-y-6">
                                 <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Location</h3>
-
-                                {/* Location Text */}
                                 <div>
                                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                                         Address <span className="text-red-500">*</span>
@@ -322,8 +326,6 @@ const EditListing: React.FC = () => {
                                         placeholder="e.g., Baneshwor, Kathmandu"
                                     />
                                 </div>
-
-                                {/* Coordinates (Optional) */}
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
                                         <label htmlFor="latitude" className="block text-sm font-medium text-gray-700 mb-1">
@@ -356,9 +358,17 @@ const EditListing: React.FC = () => {
                                         />
                                     </div>
                                 </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Pin Location on Map
+                                    </label>
+                                    <MapPicker
+                                        lat={formData.latitude ? parseFloat(formData.latitude) : null}
+                                        lng={formData.longitude ? parseFloat(formData.longitude) : null}
+                                        onChange={handleLocationChange}
+                                    />
+                                </div>
                             </div>
-
-                            {/* Images Section */}
                             <div className="space-y-6">
                                 <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Photos</h3>
                                 <div>
@@ -373,8 +383,6 @@ const EditListing: React.FC = () => {
                                     <p className="mt-2 text-xs text-gray-500">Update images as needed. First image will be the cover.</p>
                                 </div>
                             </div>
-
-                            {/* Actions */}
                             <div className="pt-6 border-t border-gray-100 flex items-center justify-end gap-4">
                                 <button
                                     type="button"

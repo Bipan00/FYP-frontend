@@ -1,64 +1,57 @@
-import React from 'react'
+import { Link } from 'react-router-dom';
+import { Home as HomeIcon } from 'lucide-react';
 
 export default function Footer() {
     return (
-        <footer className="bg-gray-50 border-t border-gray-200 pt-16 pb-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+        <footer className="bg-gray-900 text-gray-400 mt-auto">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div>
-                        <h3 className="font-bold text-gray-900 mb-4">Support</h3>
-                        <ul className="space-y-3 text-sm text-gray-600">
-                            <li><a href="#" className="hover:underline">Help Center</a></li>
-                            <li><a href="#" className="hover:underline">Safety information</a></li>
-                            <li><a href="#" className="hover:underline">Cancellation options</a></li>
-                            <li><a href="#" className="hover:underline">Our COVID-19 Response</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 mb-4">Community</h3>
-                        <ul className="space-y-3 text-sm text-gray-600">
-                            <li><a href="#" className="hover:underline">GharSathi.org: disaster relief</a></li>
-                            <li><a href="#" className="hover:underline">Support Afghan refugees</a></li>
-                            <li><a href="#" className="hover:underline">Combating discrimination</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 mb-4">Hosting</h3>
-                        <ul className="space-y-3 text-sm text-gray-600">
-                            <li><a href="#" className="hover:underline">Try hosting</a></li>
-                            <li><a href="#" className="hover:underline">AirCover for Hosts</a></li>
-                            <li><a href="#" className="hover:underline">Explore hosting resources</a></li>
-                            <li><a href="#" className="hover:underline">Visit our community forum</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 mb-4">GharSathi</h3>
-                        <ul className="space-y-3 text-sm text-gray-600">
-                            <li><a href="#" className="hover:underline">Newsroom</a></li>
-                            <li><a href="#" className="hover:underline">Learn about new features</a></li>
-                            <li><a href="#" className="hover:underline">Letter from our founders</a></li>
-                            <li><a href="#" className="hover:underline">Careers</a></li>
-                            <li><a href="#" className="hover:underline">Investors</a></li>
-                        </ul>
-                    </div>
-                </div>
+                        <div className="flex items-center gap-2 mb-3">
+                            <HomeIcon className="h-4 w-4 text-primary" />
+                            <span className="font-semibold text-white text-sm">GharSathi</span>
+                        </div>
+                        <p className="text-xs leading-relaxed">
+                            A rental platform built for students and tenants in Nepal.
+                            Find rooms, hostels, and flats near your college or workplace.
+                        </p>
 
-                <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <p>© 2026 GharSathi, Inc.</p>
-                        <span className="hidden md:inline">·</span>
-                        <a href="#" className="hover:underline">Privacy</a>
-                        <span>·</span>
-                        <a href="#" className="hover:underline">Terms</a>
-                        <span>·</span>
-                        <a href="#" className="hover:underline">Sitemap</a>
                     </div>
-                    <div className="flex items-center gap-6 font-semibold">
-                        <button className="hover:underline">English (US)</button>
-                        <button className="hover:underline">NPR</button>
+                    <div>
+                        <h4 className="text-white text-sm font-semibold mb-3">Quick Links</h4>
+                        <ul className="space-y-2 text-xs">
+                            <li>
+                                <Link to="/" className="hover:text-white transition-colors">Home</Link>
+                            </li>
+                            <li>
+                                <Link to="/explore" className="hover:text-white transition-colors">Explore Listings</Link>
+                            </li>
+                            <li>
+                                <Link to="/about" className="hover:text-white transition-colors">About the Project</Link>
+                            </li>
+                            <li>
+                                <Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link>
+                            </li>
+                            <li>
+                                <Link to="/signup" className="hover:text-white transition-colors">Register as Owner</Link>
+                            </li>
+                        </ul>
                     </div>
+                    <div>
+                        <h4 className="text-white text-sm font-semibold mb-3">Project Info</h4>
+                        <ul className="space-y-1.5 text-xs">
+                            <li>Tech: React + TypeScript + Vite</li>
+                            <li>Backend: Node.js + Express + MongoDB</li>
+                            <li>Maps: Leaflet + OpenStreetMap</li>
+                            <li>Auth: JWT-based authentication</li>
+                        </ul>
+                    </div>
+
+                </div>
+                <div className="border-t border-gray-800 mt-8 pt-4 text-xs text-center text-gray-600">
+                    &copy; {new Date().getFullYear()} GharSathi. All rights reserved.
                 </div>
             </div>
         </footer>
-    )
+    );
 }
